@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 
 const auth = require('./auth');
 const rideStore = require('./rideStore');
-const stateMachine = require('../stateMachine');
+const stateMachine = require('./stateMachine');
 const persistence = require('./persistence');
 const seed = require('./seed');
 
