@@ -3,8 +3,8 @@
 
 const ALLOWED_TRANSITIONS = {
   IDLE: ['REQUESTED'],
-  REQUESTED: ['ACCEPTED', 'CANCELLED'],
-  ACCEPTED: ['STARTED', 'CANCELLED'],
+  REQUESTED: ['ACCEPTED'],            // only accept from requested
+  ACCEPTED: ['STARTED', 'REQUESTED'], // allow cancel -> back to REQUESTED
   STARTED: ['COMPLETED'],
   COMPLETED: [],
   CANCELLED: []
@@ -17,7 +17,13 @@ const ALLOWED_TRANSITIONS = {
 function validateTransition(from, to, { ride, driverId }) {
   if (!ride) throw { code: 'NOT_FOUND', message: 'Ride not found' };
   // Idempotent: allow same-state if driver matches where applicable
-  if (from === to) return true;
+  if (from === to) {
+    // if same state but assigned to another driver, disallow
+    if (ride.driverId && driverId && ride.driverId !== driverId) {
+      throw { code: 'CONFLICT', message: 'Action permitted only by assigned driver' };
+    }
+    return true;
+  }
 
   const allowed = ALLOWED_TRANSITIONS[from] || [];
   if (!allowed.includes(to)) {
@@ -32,8 +38,8 @@ function validateTransition(from, to, { ride, driverId }) {
     }
   }
 
-  // Cancel: if cancelling from ACCEPTED ensure same driver
-  if (to === 'CANCELLED' && from === 'ACCEPTED') {
+  // Cancel (implemented as returning to REQUESTED): if moving from ACCEPTED -> REQUESTED ensure same driver
+  if (to === 'REQUESTED' && from === 'ACCEPTED') {
     if (ride.driverId && ride.driverId !== driverId) {
       throw { code: 'CONFLICT', message: 'Cancel permitted only by assigned driver' };
     }

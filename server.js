@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 
 const auth = require('./auth');
 const rideStore = require('./rideStore');
-const stateMachine = require('./stateMachine');
+const stateMachine = require('../stateMachine');
 const persistence = require('./persistence');
 const seed = require('./seed');
 
@@ -73,8 +73,11 @@ function handleTransition(req, res, toState) {
   try {
     const result = rideStore.updateAtomic(rideId, (ride) => {
       stateMachine.validateTransition(ride.status, toState, { ride, driverId });
-      // apply change
+      // If accepting, ensure driver has no other active ride (ACCEPTED or STARTED)
       if (toState === 'ACCEPTED') {
+        const all = rideStore.dump();
+        const hasActive = all.some(r => r.driverId === driverId && (r.status === 'ACCEPTED' || r.status === 'STARTED'));
+        if (hasActive) throw { code: 'CONFLICT', message: 'Driver already has an active ride' };
         ride.status = 'ACCEPTED';
         ride.driverId = driverId;
       } else if (toState === 'STARTED') {
@@ -83,7 +86,11 @@ function handleTransition(req, res, toState) {
       } else if (toState === 'COMPLETED') {
         ride.status = 'COMPLETED';
       } else if (toState === 'CANCELLED') {
-        ride.status = 'CANCELLED';
+        // Interpret cancel as returning the ride to REQUESTED so it can be picked up by others.
+        // Only allow cancel when ride was ACCEPTED (validated in stateMachine).
+        ride.status = 'REQUESTED';
+        // Remove assigned driver so ride becomes available again.
+        ride.driverId = undefined;
       }
       return ride;
     });
