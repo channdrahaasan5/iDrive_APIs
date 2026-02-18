@@ -106,7 +106,8 @@ function handleTransition(req, res, toState) {
 app.post('/rides/:id/accept', (req, res) => handleTransition(req, res, 'ACCEPTED'));
 app.post('/rides/:id/start', (req, res) => handleTransition(req, res, 'STARTED'));
 app.post('/rides/:id/complete', (req, res) => handleTransition(req, res, 'COMPLETED'));
-app.post('/rides/:id/cancel', (req, res) => handleTransition(req, res, 'CANCELLED'));
+// Cancel endpoint maps to transition back to REQUESTED (cancel by driver before STARTED)
+app.post('/rides/:id/cancel', (req, res) => handleTransition(req, res, 'REQUESTED'));
 
 // Location endpoint: appends location, simulates occasional failure
 app.post('/rides/:id/location', (req, res) => {
